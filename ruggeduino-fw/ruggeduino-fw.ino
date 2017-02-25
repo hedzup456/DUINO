@@ -3,12 +3,43 @@
 // We communicate with the power board at 115200 baud.
 #define SERIAL_BAUD 115200
 
-#define FW_VER 0
+#define FW_VER 1
+#define LEFT_A 2
+#define LEFT_B 4
+#define RIGHT_A 3
+#define RIGHT_B 5
 
-double leftDist = 100.0;
-double rightDist = 100.0;
+volatile double leftDist = 100.0;
+volatile double rightDist = 100.0;
+
+// FOR INTERRUPTS
+void doEncoderL(){
+  if (digitalRead(LEFT_A) == digitalRead(LEFT_B)){
+    leftDist += 1.0; // Work out how many ticks per rotation
+  } else leftDist -= 1.0;
+}
+void doEncoderR(){
+  if (digitalRead(RIGHT_A) == digitalRead(RIGHT_B)){
+    rightDist += 1.0; // Also work out how many ticks per rotation
+  } else rightDist -= 1.0;
+}
+
 
 void setup() {
+  pinMode(LEFT_A, INPUT);
+  pinMode(LEFT_B, INPUT);
+  pinMode(RIGHT_A, INPUT);
+  pinMode(RIGHT_B, INPUT);
+  // If we get something dodgy, might be worth setting the pull-up to true
+  /*  // Set pull-up resistors
+   *  digitalWrite(LEFT_A, HIGH);
+   *  digitalWrite(LEFT_B, HIGH);
+   *  digitalWrite(RIGHT_A, HIGH);
+   *  digitalWrite(RIGHT_B, HIGH);
+   */
+  attachInterrupt(0, doEncoderL, CHANGE);
+  attachInterrupt(1, doEncoderR, CHANGE);
+  
   Serial.begin(SERIAL_BAUD);
 }
 int read_pin() {
@@ -43,11 +74,13 @@ void command_mode(int mode) {
 
 void read_Left_Motor_Distance(){
   Serial.print(leftDist);
-  leftDist = 0.0;  
+  //leftDist = 0.0;  
+}
+void read_Right_Motor_Distance(){
+  Serial.print(rightDist);
+  //rightDist = 0.0;
 }
 
-double leftDist = 100.0;
-double rightDist = 100.0;
 void loop() {
   // Fetch all commands that are in the buffer
   while (Serial.available()) {
@@ -56,6 +89,9 @@ void loop() {
     switch (selected_command) {
       case 'b':
         read_Left_Motor_Distance();
+        break;
+      case 'c':
+        read_Right_Motor_Distance();
         break;
       case 'a':
         command_analogue_read();
